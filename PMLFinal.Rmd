@@ -1,0 +1,79 @@
+---
+title: "Practical Machine Learning Class Project"
+author: "Ralph Landon"
+date: "July 31, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load the necessary libraries
+
+```{r}
+library(caret)
+library(randomForest)
+```
+
+Load the data
+
+```{r, cache=T}
+if(!dir.exists("data")) {
+  dir.create("data")
+}
+
+if(!(file.exists("data/pml-training.csv") && file.exists("data/pml-testing.csv"))) {
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", destfile="data/pml-training.csv")
+  download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", destfile="data/pml-testing.csv")
+}
+
+pml.testing <- read.csv("data/pml-testing.csv")
+pml.training <- read.csv("data/pml-training.csv")
+```
+
+Then we need to create a training and test set from out training set
+
+```{r}
+set.seed(1986)
+inTrain <- createDataPartition(pml.training$classe, p=.75)$Resample1
+training <- pml.training[inTrain,]
+testing <- pml.training[-inTrain,]
+```
+
+I'll spare a summary or head() of the training data, but suffice it to say that the first 8 columns are of little use, and the final column is the target outcome, and that there are quite a few NAs in some of the columns.
+
+What I thought would be useful would be to create a vector of the potential covariates and trim it down as necessary. We'll start by converting the columns to numeric since some of the loaded as factors, then examine the NA situation.
+
+```{r}
+use <- 8:159
+for(i in use) {
+  training[[i]] <- as.numeric(training[[i]])
+}
+mostlyNA <- sapply(training, function(x) { ((sum(is.na(x))/length(x)))})
+mostlyNA[mostlyNA>.75]
+```
+
+That's quite a few with too many NAs to do anything with, so we'll disregard those columns
+
+```{r}
+use <- use[!(use %in% which(mostlyNA>.75))]
+```
+
+Next we'll use the nearZeroVar() method to try to trim down the list a bit further
+
+```{r}
+nz <- nearZeroVar(training[use])
+names(training[use][nz])
+```
+
+It looks like mostly these columns consist of information not pertaining to the individual data point, but to the set it comes from, we'll try dropping those also.
+
+```{r}
+use <- use[-nz]
+names(training[use])
+```
+
+```{r}
+set.seed(432)
+```
